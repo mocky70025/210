@@ -95,6 +95,8 @@ export function authenticateUser(
   password: string
 ): { success: boolean; message: string; user?: any } {
   try {
+    console.log(`認証試行: email=${email}`);
+    
     // ユーザーを取得
     const user = db
       .prepare("SELECT id, email, username, password_hash, points FROM users WHERE email = ?")
@@ -109,15 +111,21 @@ export function authenticateUser(
       | undefined;
 
     if (!user) {
+      console.log(`ユーザーが見つかりません: ${email}`);
       return { success: false, message: "メールアドレスまたはパスワードが正しくありません" };
     }
+
+    console.log(`ユーザーが見つかりました: id=${user.id}, username=${user.username}`);
 
     // パスワードを検証
     const isValidPassword = bcrypt.compareSync(password, user.password_hash);
 
     if (!isValidPassword) {
+      console.log(`パスワードが一致しません: ${email}`);
       return { success: false, message: "メールアドレスまたはパスワードが正しくありません" };
     }
+
+    console.log(`認証成功: ${email}`);
 
     // パスワードハッシュを除外して返す
     const { password_hash, ...userWithoutPassword } = user;
@@ -134,7 +142,8 @@ export function authenticateUser(
     };
   } catch (error) {
     console.error("認証エラー:", error);
-    return { success: false, message: "ログインに失敗しました" };
+    const errorMessage = error instanceof Error ? error.message : "不明なエラー";
+    return { success: false, message: `ログインに失敗しました: ${errorMessage}` };
   }
 }
 

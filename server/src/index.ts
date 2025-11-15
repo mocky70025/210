@@ -106,13 +106,18 @@ app.post("/api/register", async (req, res) => {
 // HTTP API: ログイン（認証のみ、Socket.IO接続は別）
 app.post("/api/login", async (req, res) => {
   try {
+    console.log("ログインAPI呼び出し:", req.body);
     const { email, password } = req.body;
 
     if (!email || !password) {
+      console.log("メールアドレスまたはパスワードが未入力");
       return res.status(400).json({ success: false, message: "メールアドレスとパスワードを入力してください" });
     }
 
+    console.log(`認証開始: email=${email}`);
     const result = authenticateUser(email, password);
+    console.log(`認証結果: success=${result.success}`);
+    
     if (result.success && result.user) {
       res.json(result);
     } else {
@@ -120,9 +125,12 @@ app.post("/api/login", async (req, res) => {
     }
   } catch (error) {
     console.error("ログインAPIエラー:", error);
+    const errorMessage = error instanceof Error ? error.message : "不明なエラー";
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("エラースタック:", errorStack);
     res.status(500).json({ 
       success: false, 
-      message: `サーバーエラー: ${error instanceof Error ? error.message : "不明なエラー"}` 
+      message: `サーバーエラー: ${errorMessage}` 
     });
   }
 });
