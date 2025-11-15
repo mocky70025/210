@@ -4,40 +4,127 @@
 
 ## 構成
 
-- **フロントエンド**: Vercel
-- **バックエンド**: Railway（または Render、Fly.io など Socket.IO をサポートするサービス）
+- **フロントエンド**: Vercel（完全無料）
+- **バックエンド**: Render または Fly.io（完全無料、Socket.IO対応）
 
-## 1. バックエンドのデプロイ（Railway推奨）
+## 1. バックエンドのデプロイ（完全無料サービス）
 
-### Railway でのデプロイ
+### オプション1: Render（推奨・最も簡単）
 
-1. [Railway](https://railway.app/) にアカウントを作成・ログイン
-2. 「New Project」→「Deploy from GitHub repo」を選択
-3. リポジトリを選択
-4. サービス設定で以下を指定：
-   - **Root Directory**: `server` を指定
+**完全無料プラン**:
+- WebSocket対応
+- スリープする可能性あり（15分間アクセスがないとスリープ、次回アクセス時に自動復帰）
+- 無制限のデプロイ
+
+**デプロイ手順**:
+
+1. [Render](https://render.com/) にアカウントを作成・ログイン（GitHubアカウントで連携可能）
+2. 「New +」→「Web Service」を選択
+3. GitHubリポジトリ `reizoukunn-debug/210` を接続
+4. 設定:
+   - **Name**: `minigame-backend`（任意）
+   - **Root Directory**: `server`
+   - **Environment**: `Node`
    - **Build Command**: `npm install && npm run build`
    - **Start Command**: `npm start`
-5. 環境変数を設定（「Variables」タブ）：
-   - `FRONTEND_URL`: フロントエンドのURL（後で設定するVercelのURL、一時的に `http://localhost:5173` でも可）
-   - `PORT`: Railwayが自動設定（通常は環境変数 `PORT` を使用）
-6. デプロイが完了したら、RailwayのURLをメモ（例: `https://your-app.railway.app`）
+5. 環境変数を追加（「Environment」セクション）:
+   - **Key**: `FRONTEND_URL`
+   - **Value**: フロントエンドのURL（後で設定するVercelのURL、一時的に `http://localhost:5173` でも可）
+   - **Key**: `PORT`
+   - **Value**: `10000`（Renderのデフォルトポート）
+6. 「Create Web Service」をクリック
+7. デプロイ完了後、RenderのURLをメモ（例: `https://minigame-backend.onrender.com`）
 
-**注意**: Railwayでは、デプロイ後に自動的にURLが生成されます。このURLをフロントエンドの環境変数に設定します。
+**注意**: Renderの無料プランは15分間アクセスがないとスリープしますが、次回アクセス時に自動的に復帰します（初回復帰に30秒程度かかることがあります）。
 
-### その他のサービスでのデプロイ
+### オプション2: Fly.io（推奨・スリープしない）
 
-**Render**:
-- Web Service としてデプロイ
-- Build Command: `cd server && npm install && npm run build`
-- Start Command: `cd server && npm start`
+**完全無料プラン**:
+- WebSocket対応
+- **スリープしない**（常時稼働）
+- 月間160時間のCPU時間（通常の使用では十分）
+- 3つの共有CPU、256MB RAM
 
-**Fly.io**:
+**デプロイ手順**:
+
+1. [Fly.io](https://fly.io/) にアカウントを作成・ログイン
+2. Fly CLIをインストール:
+```bash
+# macOS
+curl -L https://fly.io/install.sh | sh
+
+# または Homebrew
+brew install flyctl
+```
+3. ログイン:
+```bash
+fly auth login
+```
+4. サーバーディレクトリに移動:
 ```bash
 cd server
+```
+5. Flyアプリを初期化:
+```bash
 fly launch
+```
+   - アプリ名を入力（例: `minigame-backend`）
+   - リージョンを選択（例: `nrt` - 東京）
+   - PostgreSQLは不要なので「No」
+6. `fly.toml` が作成されるので、確認・編集:
+```toml
+app = "minigame-backend"
+primary_region = "nrt"
+
+[build]
+
+[env]
+  PORT = "8080"
+  FRONTEND_URL = "http://localhost:5173"  # 後で更新
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false  # スリープしないように
+  auto_start_machines = true
+  min_machines_running = 1
+```
+7. 環境変数を設定:
+```bash
+fly secrets set FRONTEND_URL=http://localhost:5173
+# 後でVercelのURLに更新: fly secrets set FRONTEND_URL=https://your-app.vercel.app
+```
+8. デプロイ:
+```bash
 fly deploy
 ```
+9. デプロイ完了後、Fly.ioのURLをメモ（例: `https://minigame-backend.fly.dev`）
+
+### オプション3: Glitch（簡単だが制限あり）
+
+**完全無料プラン**:
+- WebSocket対応
+- エディタ内で直接編集可能
+- 5分間アクセスがないとスリープ
+
+**デプロイ手順**:
+
+1. [Glitch](https://glitch.com/) にアカウントを作成・ログイン
+2. 「New Project」→「Import from GitHub」
+3. リポジトリ `reizoukunn-debug/210` をインポート
+4. `.env` ファイルを作成:
+```
+FRONTEND_URL=http://localhost:5173
+PORT=3000
+```
+5. `package.json` のルートに移動（Glitchはルートディレクトリから実行）
+6. `server` フォルダの内容をルートにコピーするか、`package.json` を調整
+
+**注意**: Glitchはスリープするため、本番環境には不向きです。
+
+## 1-1. バックエンドのデプロイ（Railway - 有料化の可能性あり）
+
+> **注意**: Railwayは無料プランが制限されており、30日後またはクレジット切れで有料化される可能性があります。完全無料で使う場合は、上記の Render または Fly.io を推奨します。
 
 ## 2. フロントエンドのデプロイ（Vercel）
 
@@ -95,10 +182,15 @@ vercel --prod
 
 フロントエンドのデプロイが完了したら、バックエンドの `FRONTEND_URL` 環境変数を更新します。
 
-**Railway**:
-1. プロジェクトの「Variables」タブを開く
+**Render**:
+1. ダッシュボードの「Environment」セクションを開く
 2. `FRONTEND_URL` を Vercel のURLに更新（例: `https://your-app.vercel.app`）
-3. 再デプロイ
+3. 自動的に再デプロイされます
+
+**Fly.io**:
+```bash
+fly secrets set FRONTEND_URL=https://your-app.vercel.app
+```
 
 ## 4. 動作確認
 

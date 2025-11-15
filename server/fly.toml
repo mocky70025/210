@@ -1,0 +1,24 @@
+# Fly.io デプロイ設定ファイル
+app = "minigame-backend"
+primary_region = "nrt"  # 東京リージョン
+
+[build]
+
+[env]
+  PORT = "8080"
+  # FRONTEND_URL は fly secrets で設定
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false  # スリープしないように設定
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/"
+

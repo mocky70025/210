@@ -360,8 +360,10 @@ io.on("connection", (socket) => {
   });
 });
 
+// ポート番号を環境変数から取得（Render/Fly.ioなどで自動設定される）
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-  console.log(`サーバー起動: http://localhost:${PORT}`);
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`サーバー起動: http://0.0.0.0:${PORT}`);
+  console.log(`フロントエンドURL: ${FRONTEND_URL}`);
 });
 

@@ -1,0 +1,15 @@
+# Render デプロイ設定ファイル
+services:
+  - type: web
+    name: minigame-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    rootDir: server
+    envVars:
+      - key: FRONTEND_URL
+        sync: false  # 手動で設定
+      - key: PORT
+        value: 10000  # Renderのデフォルトポート
+    healthCheckPath: /
+
