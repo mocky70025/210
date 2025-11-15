@@ -1,12 +1,14 @@
 # Fly.io デプロイ設定ファイル
+# アプリ名は fly launch 時に設定されます（ここではプレースホルダー）
 app = "minigame-backend"
 primary_region = "nrt"  # 東京リージョン
 
 [build]
+  # Node.jsのビルドは自動検出されます
 
 [env]
   PORT = "8080"
-  # FRONTEND_URL は fly secrets で設定
+  # FRONTEND_URL は fly secrets で設定（後でVercelのURLに更新）
 
 [http_service]
   internal_port = 8080
