@@ -28,6 +28,6 @@ export interface GameResult {
   winnerId?: string;
   loserIds: string[];
   isDraw: boolean;
-  pointsChange: Record<string, number>;
+  pointsChange: Record<number, number>; // キーはuserId（number）
 }
 
