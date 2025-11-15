@@ -18,9 +18,14 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setError("");
     setLoading(true);
 
+    // デバッグ情報をコンソールに出力
+    console.log("ログイン試行:", { email, API_URL });
+
     try {
       // HTTP APIでログイン（認証）
-      const response = await fetch(`${API_URL}/api/login`, {
+      const loginUrl = `${API_URL}/api/login`;
+      console.log("ログインURL:", loginUrl);
+      const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -138,6 +143,7 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         <div className="mt-4 text-center text-sm text-gray-600">
           <p>アカウント登録は運営が行います</p>
           <p className="text-xs mt-1">メールアドレスとパスワードをお持ちの方はログインしてください</p>
+          <p className="text-xs mt-2 text-gray-500">API URL: {API_URL}</p>
         </div>
       </div>
     </div>
