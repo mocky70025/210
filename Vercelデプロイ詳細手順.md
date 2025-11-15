@@ -4,7 +4,7 @@
 
 ## 📋 事前準備
 
-- GitHubアカウント（既にリポジトリ `reizoukunn-debug/210` にコードがある）
+- GitHubアカウント（既にリポジトリ `mocky70025/210` にコードがある）
 - RenderのバックエンドURL（既に取得済み: `https://two10-u8xp.onrender.com/`）
 
 ---
@@ -46,7 +46,7 @@
 
 1. 「Import Git Repository」セクションが表示されます
 2. 検索ボックスに `210` と入力
-3. `reizoukunn-debug/210` が表示されるので、クリック
+3. `mocky70025/210` が表示されるので、クリック
 4. 「Import」ボタンをクリック
 
 **✅ リポジトリがインポートされました！**

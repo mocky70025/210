@@ -20,7 +20,7 @@
 
 1. [Render](https://render.com/) にアカウントを作成・ログイン（GitHubアカウントで連携可能）
 2. 「New +」→「Web Service」を選択
-3. GitHubリポジトリ `reizoukunn-debug/210` を接続
+3. GitHubリポジトリ `mocky70025/210` を接続
 4. 設定:
    - **Name**: `minigame-backend`（任意）
    - **Root Directory**: `server`
@@ -111,7 +111,7 @@ fly deploy
 
 1. [Glitch](https://glitch.com/) にアカウントを作成・ログイン
 2. 「New Project」→「Import from GitHub」
-3. リポジトリ `reizoukunn-debug/210` をインポート
+3. リポジトリ `mocky70025/210` をインポート
 4. `.env` ファイルを作成:
 ```
 FRONTEND_URL=http://localhost:5173
