@@ -15,10 +15,16 @@ if (!fs.existsSync(DB_DIR)) {
 // データベース接続
 let db: Database.Database;
 try {
+  console.log(`データベース接続を試みます: ${DB_PATH}`);
+  console.log(`データベースディレクトリ: ${DB_DIR}`);
+  console.log(`ディレクトリ存在確認: ${fs.existsSync(DB_DIR)}`);
+  
   db = new Database(DB_PATH);
   console.log(`データベースに接続しました: ${DB_PATH}`);
 } catch (error) {
   console.error("データベース接続エラー:", error);
+  const errorMessage = error instanceof Error ? error.message : "不明なエラー";
+  console.error(`エラー詳細: ${errorMessage}`);
   throw error;
 }
 export { db };
