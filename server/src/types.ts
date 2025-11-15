@@ -1,6 +1,16 @@
-// ユーザー情報
-export interface User {
+// ユーザー情報（オンライン時）
+export interface OnlineUser {
   id: string; // Socket.IO の socket.id
+  userId: number; // データベースのユーザーID
+  email: string;
+  username: string;
+  points: number;
+}
+
+// データベースのユーザー情報
+export interface User {
+  id: number;
+  email: string;
   username: string;
   points: number;
 }

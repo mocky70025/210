@@ -5,46 +5,69 @@ import { API_URL } from "../config";
 
 interface LoginScreenProps {
   onLoginSuccess: (user: User, socket: Socket) => void;
+  onSwitchToRegister: () => void;
 }
 
-function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
-  const [username, setUsername] = useState("");
+function LoginScreen({ onLoginSuccess, onSwitchToRegister }: LoginScreenProps) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Socket.IO 接続を確立
-    const socket = io(API_URL);
+    try {
+      // HTTP APIでログイン（認証）
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    // ログインイベントを送信
-    socket.emit("login", { username, password });
+      const data = await response.json();
 
-    // ログイン成功
-    socket.once("login_success", (data: { 
-      user: User;
-      onlineUsers: User[];
-      availableRooms: any[];
-    }) => {
+      if (!data.success || !data.user) {
+        setError(data.message || "ログインに失敗しました");
+        setLoading(false);
+        return;
+      }
+
+      // Socket.IO 接続を確立
+      const socket = io(API_URL);
+
+      // Socket.IOでログイン（接続）
+      socket.emit("login", { userId: data.user.id, email: data.user.email });
+
+      // ログイン成功
+      socket.once("login_success", (socketData: {
+        user: User;
+        onlineUsers: User[];
+        availableRooms: any[];
+      }) => {
+        setLoading(false);
+        // 初期データを socket に保存（LobbyScreen で使用）
+        (socket as any).initialData = {
+          onlineUsers: socketData.onlineUsers,
+          availableRooms: socketData.availableRooms,
+        };
+        onLoginSuccess(socketData.user, socket);
+      });
+
+      // ログインエラー
+      socket.once("login_error", (errorData: { message: string }) => {
+        setError(errorData.message);
+        setLoading(false);
+        socket.disconnect();
+      });
+    } catch (err) {
+      setError("ログインに失敗しました。ネットワーク接続を確認してください。");
       setLoading(false);
-      // 初期データを socket に保存（LobbyScreen で使用）
-      (socket as any).initialData = {
-        onlineUsers: data.onlineUsers,
-        availableRooms: data.availableRooms,
-      };
-      onLoginSuccess(data.user, socket);
-    });
-
-    // ログインエラー
-    socket.once("login_error", (data: { message: string }) => {
-      setError(data.message);
-      setLoading(false);
-      socket.disconnect();
-    });
+    }
   };
 
   return (
@@ -56,19 +79,19 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
-              htmlFor="username"
+              htmlFor="email"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              ユーザー名
+              メールアドレス
             </label>
             <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="ユーザー名を入力"
+              placeholder="メールアドレスを入力"
             />
           </div>
           <div>
@@ -85,7 +108,7 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="共通パスワードを入力"
+              placeholder="パスワードを入力"
             />
           </div>
           {error && (
@@ -101,10 +124,18 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             {loading ? "ログイン中..." : "ログイン"}
           </button>
         </form>
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={onSwitchToRegister}
+            className="text-blue-600 hover:text-blue-800 text-sm"
+          >
+            アカウントをお持ちでない方はこちら
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 export default LoginScreen;
-

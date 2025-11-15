@@ -1,6 +1,7 @@
 // ユーザー情報
 export interface User {
-  id: string;
+  id: number;
+  email: string;
   username: string;
   points: number;
 }

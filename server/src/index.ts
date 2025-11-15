@@ -2,8 +2,18 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import { User, Room, GameType, RPSChoice } from "./types";
+import { OnlineUser, Room, GameType, RPSChoice } from "./types";
 import { calculateRPSResult } from "./game/rps";
+import {
+  initDatabase,
+  registerUser,
+  authenticateUser,
+  getUserById,
+  updateUserPoints,
+  getUserPoints,
+} from "./db";
+import fs from "fs";
+import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
@@ -28,20 +38,19 @@ app.use(
 );
 app.use(express.json());
 
-// 共通パスワード（ハードコード）
-const COMMON_PASSWORD = "only-friends-2025";
-const INITIAL_POINTS = 1000;
+// データベースの初期化
+const dataDir = path.join(__dirname, "../data");
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+initDatabase();
+
 const MAX_ONLINE_USERS = 8;
 
-// インメモリデータストア
-const users = new Map<string, User>(); // socket.id -> User
+// インメモリデータストア（オンライン状態のみ）
+const onlineUsers = new Map<string, OnlineUser>(); // socket.id -> OnlineUser
 const rooms = new Map<string, Room>(); // room.id -> Room
-const usernameToSocketId = new Map<string, string>(); // username -> socket.id
-
-// ユーザー名が既に使用されているかチェック
-function isUsernameTaken(username: string): boolean {
-  return usernameToSocketId.has(username);
-}
+const emailToSocketId = new Map<string, string>(); // email -> socket.id
 
 // ルームIDを生成
 function generateRoomId(): string {
@@ -49,8 +58,8 @@ function generateRoomId(): string {
 }
 
 // オンラインユーザー一覧を取得
-function getOnlineUsers(): User[] {
-  return Array.from(users.values());
+function getOnlineUsersList(): OnlineUser[] {
+  return Array.from(onlineUsers.values());
 }
 
 // 参加可能なルーム一覧を取得
@@ -60,68 +69,129 @@ function getAvailableRooms(): Room[] {
   );
 }
 
+// HTTP API: ユーザー登録
+app.post("/api/register", async (req, res) => {
+  const { email, password, username } = req.body;
+
+  if (!email || !password || !username) {
+    return res.status(400).json({ success: false, message: "すべての項目を入力してください" });
+  }
+
+  const result = registerUser(email, password, username);
+  if (result.success) {
+    res.json(result);
+  } else {
+    res.status(400).json(result);
+  }
+});
+
+// HTTP API: ログイン（認証のみ、Socket.IO接続は別）
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: "メールアドレスとパスワードを入力してください" });
+  }
+
+  const result = authenticateUser(email, password);
+  if (result.success && result.user) {
+    res.json(result);
+  } else {
+    res.status(401).json(result);
+  }
+});
+
 // Socket.IO 接続処理
 io.on("connection", (socket) => {
   console.log(`クライアント接続: ${socket.id}`);
 
-  // ログイン処理
-  socket.on("login", (data: { username: string; password: string }) => {
-    // パスワードチェック
-    if (data.password !== COMMON_PASSWORD) {
-      socket.emit("login_error", { message: "パスワードが正しくありません" });
+  // ログイン処理（既にHTTP APIで認証済みのユーザーが接続）
+  socket.on("login", (data: { userId: number; email: string }) => {
+    // データベースからユーザー情報を取得
+    const dbUser = getUserById(data.userId);
+    if (!dbUser) {
+      socket.emit("login_error", { message: "ユーザーが見つかりません" });
       return;
     }
 
-    // ユーザー名の重複チェック
-    if (isUsernameTaken(data.username)) {
+    // 既にログインしているかチェック
+    if (emailToSocketId.has(data.email)) {
       socket.emit("login_error", {
-        message: "このユーザー名は既に使用されています",
+        message: "このアカウントは既にログインしています",
       });
       return;
     }
 
     // オンラインユーザー数のチェック
-    if (users.size >= MAX_ONLINE_USERS) {
+    if (onlineUsers.size >= MAX_ONLINE_USERS) {
       socket.emit("login_error", {
         message: "サーバーが満員です。しばらく待ってから再度お試しください",
       });
       return;
     }
 
-    // ユーザー情報を作成
-    const user: User = {
+    // オンラインユーザー情報を作成
+    const onlineUser: OnlineUser = {
       id: socket.id,
-      username: data.username,
-      points: INITIAL_POINTS,
+      userId: dbUser.id,
+      email: dbUser.email,
+      username: dbUser.username,
+      points: dbUser.points,
     };
 
-    users.set(socket.id, user);
-    usernameToSocketId.set(data.username, socket.id);
+    onlineUsers.set(socket.id, onlineUser);
+    emailToSocketId.set(data.email, socket.id);
 
     // ログイン成功を通知
     socket.emit("login_success", {
-      user,
-      onlineUsers: getOnlineUsers(),
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        username: dbUser.username,
+        points: dbUser.points,
+      },
+      onlineUsers: getOnlineUsersList(),
       availableRooms: getAvailableRooms(),
     });
 
     // 他のユーザーに新しいユーザーの参加を通知
-    socket.broadcast.emit("user_joined", { user });
+    socket.broadcast.emit("user_joined", {
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        username: dbUser.username,
+        points: dbUser.points,
+      },
+    });
     socket.broadcast.emit("online_users_updated", {
-      onlineUsers: getOnlineUsers(),
+      onlineUsers: getOnlineUsersList(),
     });
   });
 
   // ルーム作成
   socket.on("create_room", (data: { gameType: GameType }) => {
-    const user = users.get(socket.id);
+    const user = onlineUsers.get(socket.id);
     if (!user) {
       socket.emit("error", { message: "ログインが必要です" });
       return;
     }
 
+    // データベースから最新のポイントを取得
+    const currentPoints = getUserPoints(user.userId);
+    if (currentPoints !== user.points) {
+      user.points = currentPoints;
+    }
+
     // じゃんけんの場合はベット額を100ptに固定
     const betAmount = data.gameType === "rps" ? 100 : 100;
+
+    // ポイントチェック
+    if (user.points < betAmount) {
+      socket.emit("error", {
+        message: `ポイントが不足しています（必要: ${betAmount}pt）`,
+      });
+      return;
+    }
 
     const room: Room = {
       id: generateRoomId(),
@@ -143,10 +213,16 @@ io.on("connection", (socket) => {
 
   // ルーム参加
   socket.on("join_room", (data: { roomId: string }) => {
-    const user = users.get(socket.id);
+    const user = onlineUsers.get(socket.id);
     if (!user) {
       socket.emit("error", { message: "ログインが必要です" });
       return;
+    }
+
+    // データベースから最新のポイントを取得
+    const currentPoints = getUserPoints(user.userId);
+    if (currentPoints !== user.points) {
+      user.points = currentPoints;
     }
 
     const room = rooms.get(data.roomId);
@@ -184,7 +260,12 @@ io.on("connection", (socket) => {
       socket.emit("room_joined", { room });
       socket.broadcast.to(room.id).emit("player_joined_room", {
         room,
-        newPlayer: user,
+        newPlayer: {
+          id: user.userId,
+          email: user.email,
+          username: user.username,
+          points: user.points,
+        },
       });
     }
 
@@ -225,6 +306,14 @@ io.on("connection", (socket) => {
       const player1Choice = room.gameData[player1Id] as RPSChoice;
       const player2Choice = room.gameData[player2Id] as RPSChoice;
 
+      const player1 = onlineUsers.get(player1Id);
+      const player2 = onlineUsers.get(player2Id);
+
+      if (!player1 || !player2) {
+        socket.emit("error", { message: "プレイヤー情報が見つかりません" });
+        return;
+      }
+
       const gameResult = calculateRPSResult(
         player1Id,
         player1Choice,
@@ -233,11 +322,14 @@ io.on("connection", (socket) => {
         room.betAmount
       );
 
-      // ポイントを更新
-      Object.entries(gameResult.pointsChange).forEach(([playerId, change]) => {
-        const player = users.get(playerId);
+      // ポイントを更新（データベースとメモリ）
+      Object.entries(gameResult.pointsChange).forEach(([playerSocketId, change]) => {
+        const player = onlineUsers.get(playerSocketId);
         if (player) {
-          player.points += change;
+          const newPoints = player.points + change;
+          player.points = newPoints;
+          // データベースに保存
+          updateUserPoints(player.userId, newPoints);
         }
       });
 
@@ -250,9 +342,19 @@ io.on("connection", (socket) => {
           [player2Id]: player2Choice,
         },
         updatedUsers: [
-          users.get(player1Id),
-          users.get(player2Id),
-        ].filter(Boolean),
+          {
+            id: player1.userId,
+            email: player1.email,
+            username: player1.username,
+            points: player1.points,
+          },
+          {
+            id: player2.userId,
+            email: player2.email,
+            username: player2.username,
+            points: player2.points,
+          },
+        ],
       });
 
       // 引き分けの場合は継続、そうでなければ終了
@@ -272,8 +374,8 @@ io.on("connection", (socket) => {
   });
 
   // ポイント譲渡
-  socket.on("transfer_points", (data: { targetUsername: string; amount: number }) => {
-    const sender = users.get(socket.id);
+  socket.on("transfer_points", (data: { targetEmail: string; amount: number }) => {
+    const sender = onlineUsers.get(socket.id);
     if (!sender) {
       socket.emit("error", { message: "ログインが必要です" });
       return;
@@ -284,50 +386,78 @@ io.on("connection", (socket) => {
       return;
     }
 
+    // データベースから最新のポイントを取得
+    const currentPoints = getUserPoints(sender.userId);
+    if (currentPoints !== sender.points) {
+      sender.points = currentPoints;
+    }
+
     if (sender.points < data.amount) {
       socket.emit("error", { message: "ポイントが不足しています" });
       return;
     }
 
-    const targetSocketId = usernameToSocketId.get(data.targetUsername);
+    const targetSocketId = emailToSocketId.get(data.targetEmail);
     if (!targetSocketId) {
       socket.emit("error", { message: "対象ユーザーが見つかりません" });
       return;
     }
 
-    const target = users.get(targetSocketId);
+    const target = onlineUsers.get(targetSocketId);
     if (!target) {
       socket.emit("error", { message: "対象ユーザーはオンラインではありません" });
       return;
     }
 
-    // ポイントを譲渡
-    sender.points -= data.amount;
-    target.points += data.amount;
+    // データベースから対象ユーザーの最新ポイントを取得
+    const targetCurrentPoints = getUserPoints(target.userId);
+    if (targetCurrentPoints !== target.points) {
+      target.points = targetCurrentPoints;
+    }
+
+    // ポイントを譲渡（データベースとメモリ）
+    const senderNewPoints = sender.points - data.amount;
+    const targetNewPoints = target.points + data.amount;
+
+    sender.points = senderNewPoints;
+    target.points = targetNewPoints;
+
+    updateUserPoints(sender.userId, senderNewPoints);
+    updateUserPoints(target.userId, targetNewPoints);
 
     // 両方のユーザーに通知
     socket.emit("transfer_success", {
-      message: `${data.targetUsername} に ${data.amount}pt を譲渡しました`,
-      updatedUser: sender,
+      message: `${target.username} に ${data.amount}pt を譲渡しました`,
+      updatedUser: {
+        id: sender.userId,
+        email: sender.email,
+        username: sender.username,
+        points: sender.points,
+      },
     });
 
     io.to(targetSocketId).emit("points_received", {
       message: `${sender.username} から ${data.amount}pt を受け取りました`,
-      updatedUser: target,
+      updatedUser: {
+        id: target.userId,
+        email: target.email,
+        username: target.username,
+        points: target.points,
+      },
     });
 
     // オンラインユーザー一覧を更新
     io.emit("online_users_updated", {
-      onlineUsers: getOnlineUsers(),
+      onlineUsers: getOnlineUsersList(),
     });
   });
 
   // 切断処理
   socket.on("disconnect", () => {
-    const user = users.get(socket.id);
+    const user = onlineUsers.get(socket.id);
     if (user) {
-      users.delete(socket.id);
-      usernameToSocketId.delete(user.username);
+      onlineUsers.delete(socket.id);
+      emailToSocketId.delete(user.email);
 
       // 参加中のルームから退出
       rooms.forEach((room) => {
@@ -349,7 +479,7 @@ io.on("connection", (socket) => {
       // 他のユーザーに通知
       socket.broadcast.emit("user_left", { username: user.username });
       socket.broadcast.emit("online_users_updated", {
-        onlineUsers: getOnlineUsers(),
+        onlineUsers: getOnlineUsersList(),
       });
       socket.broadcast.emit("room_list_updated", {
         availableRooms: getAvailableRooms(),
@@ -366,4 +496,3 @@ httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`サーバー起動: http://0.0.0.0:${PORT}`);
   console.log(`フロントエンドURL: ${FRONTEND_URL}`);
 });
-

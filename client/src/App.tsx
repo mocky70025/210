@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Socket } from "socket.io-client";
 import LoginScreen from "./components/LoginScreen";
+import RegisterScreen from "./components/RegisterScreen";
 import LobbyScreen from "./components/LobbyScreen";
 import GameRoom from "./components/GameRoom";
 import { User, Room } from "./types";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -76,9 +78,22 @@ function App() {
   // Socket インスタンスを取得する関数（子コンポーネントで使用）
   const getSocket = () => socket;
 
-  // ログイン画面
+  // ログイン画面または登録画面
   if (!isLoggedIn) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    if (showRegister) {
+      return (
+        <RegisterScreen
+          onRegisterSuccess={() => setShowRegister(false)}
+          onSwitchToLogin={() => setShowRegister(false)}
+        />
+      );
+    }
+    return (
+      <LoginScreen
+        onLoginSuccess={handleLoginSuccess}
+        onSwitchToRegister={() => setShowRegister(true)}
+      />
+    );
   }
 
   // ゲームルーム画面

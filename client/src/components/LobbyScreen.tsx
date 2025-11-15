@@ -19,7 +19,7 @@ function LobbyScreen({
 }: LobbyScreenProps) {
   const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
-  const [transferTarget, setTransferTarget] = useState("");
+  const [transferTarget, setTransferTarget] = useState(""); // メールアドレス
   const [transferAmount, setTransferAmount] = useState("");
 
   useEffect(() => {
@@ -111,7 +111,7 @@ function LobbyScreen({
     }
 
     socket.emit("transfer_points", {
-      targetUsername: transferTarget,
+      targetEmail: transferTarget,
       amount,
     });
 
@@ -184,15 +184,15 @@ function LobbyScreen({
               <form onSubmit={handleTransferPoints} className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    対象ユーザー
+                    対象ユーザーのメールアドレス
                   </label>
                   <input
-                    type="text"
+                    type="email"
                     value={transferTarget}
                     onChange={(e) => setTransferTarget(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="ユーザー名を入力"
+                    placeholder="メールアドレスを入力"
                   />
                 </div>
                 <div>
