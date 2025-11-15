@@ -50,10 +50,35 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       }
 
       // Socket.IO 接続を確立
-      const socket = io(API_URL);
+      console.log("Socket.IO接続を開始:", API_URL);
+      const socket = io(API_URL, {
+        transports: ["websocket", "polling"],
+        timeout: 20000, // 20秒のタイムアウト
+      });
+
+      // 接続エラーのハンドリング
+      socket.on("connect_error", (error) => {
+        console.error("Socket.IO接続エラー:", error);
+        setError(`サーバーに接続できませんでした: ${error.message}`);
+        setLoading(false);
+        socket.disconnect();
+      });
+
+      // 接続タイムアウト
+      const timeoutId = setTimeout(() => {
+        if (!socket.connected) {
+          console.error("Socket.IO接続タイムアウト");
+          setError("サーバーへの接続がタイムアウトしました。しばらく待ってから再度お試しください。");
+          setLoading(false);
+          socket.disconnect();
+        }
+      }, 20000);
 
       // Socket.IOでログイン（接続）
-      socket.emit("login", { userId: data.user.id, email: data.user.email });
+      socket.on("connect", () => {
+        console.log("Socket.IO接続成功");
+        socket.emit("login", { userId: data.user.id, email: data.user.email });
+      });
 
       // ログイン成功
       socket.once("login_success", (socketData: {
@@ -61,6 +86,8 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         onlineUsers: User[];
         availableRooms: any[];
       }) => {
+        clearTimeout(timeoutId);
+        console.log("ログイン成功:", socketData);
         setLoading(false);
         // 初期データを socket に保存（LobbyScreen で使用）
         (socket as any).initialData = {
@@ -72,6 +99,8 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
       // ログインエラー
       socket.once("login_error", (errorData: { message: string }) => {
+        clearTimeout(timeoutId);
+        console.error("ログインエラー:", errorData);
         setError(errorData.message);
         setLoading(false);
         socket.disconnect();
