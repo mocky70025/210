@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { Socket } from "socket.io-client";
 import LoginScreen from "./components/LoginScreen";
-import RegisterScreen from "./components/RegisterScreen";
 import LobbyScreen from "./components/LobbyScreen";
 import GameRoom from "./components/GameRoom";
 import { User, Room } from "./types";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -80,12 +78,7 @@ function App() {
 
   // ログイン画面（ユーザー登録は運営のみが行うため、登録画面は非表示）
   if (!isLoggedIn) {
-    return (
-      <LoginScreen
-        onLoginSuccess={handleLoginSuccess}
-        onSwitchToRegister={() => {}}
-      />
-    );
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
   // ゲームルーム画面

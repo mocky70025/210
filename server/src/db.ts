@@ -1,9 +1,16 @@
 import Database from "better-sqlite3";
 import bcrypt from "bcrypt";
 import path from "path";
+import fs from "fs";
 
 // データベースファイルのパス
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, "../data", "minigame.db");
+const DB_DIR = process.env.DB_DIR || path.join(__dirname, "../data");
+const DB_PATH = process.env.DB_PATH || path.join(DB_DIR, "minigame.db");
+
+// データベースディレクトリが存在しない場合は作成
+if (!fs.existsSync(DB_DIR)) {
+  fs.mkdirSync(DB_DIR, { recursive: true });
+}
 
 // データベース接続
 export const db = new Database(DB_PATH);

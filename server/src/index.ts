@@ -334,6 +334,8 @@ io.on("connection", (socket) => {
       );
 
       // ポイントを更新（データベースとメモリ）
+      // pointsChangeのキーをsocket.idからuserIdに変換
+      const pointsChangeByUserId: Record<number, number> = {};
       Object.entries(gameResult.pointsChange).forEach(([playerSocketId, change]) => {
         const player = onlineUsers.get(playerSocketId);
         if (player) {
@@ -341,13 +343,18 @@ io.on("connection", (socket) => {
           player.points = newPoints;
           // データベースに保存
           updateUserPoints(player.userId, newPoints);
+          // userIdをキーにしたポイント変動を記録
+          pointsChangeByUserId[player.userId] = change;
         }
       });
 
       // 結果を全員に通知
       io.to(room.id).emit("game_result", {
         roomId: room.id,
-        result: gameResult,
+        result: {
+          ...gameResult,
+          pointsChange: pointsChangeByUserId, // userIdをキーにしたポイント変動
+        },
         choices: {
           [player1Id]: player1Choice,
           [player2Id]: player2Choice,

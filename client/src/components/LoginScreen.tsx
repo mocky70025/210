@@ -5,10 +5,9 @@ import { API_URL } from "../config";
 
 interface LoginScreenProps {
   onLoginSuccess: (user: User, socket: Socket) => void;
-  onSwitchToRegister: () => void;
 }
 
-function LoginScreen({ onLoginSuccess, onSwitchToRegister }: LoginScreenProps) {
+function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

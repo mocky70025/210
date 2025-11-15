@@ -158,25 +158,27 @@ function GameRoom({
                 結果
               </h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                {Object.entries(gameResult.choices).map(([playerId, choice]) => {
-                  const player = updatedUsers.find((u) => u.id === playerId);
-                  const isMe = playerId === currentUser.id;
+                {updatedUsers.map((player, index) => {
+                  // choicesのキーはsocket.idだが、updatedUsersの順序で対応
+                  const choicesArray = Object.values(gameResult.choices);
+                  const choice = choicesArray[index] as RPSChoice | undefined;
+                  const isMe = player.id === currentUser.id;
                   return (
                     <div
-                      key={playerId}
+                      key={player.id}
                       className={`p-4 rounded ${
                         isMe ? "bg-blue-100" : "bg-gray-100"
                       }`}
                     >
                       <div className="text-center">
                         <div className="text-4xl mb-2">
-                          {getChoiceEmoji(choice as RPSChoice)}
+                          {choice ? getChoiceEmoji(choice) : "?"}
                         </div>
                         <div className="font-medium">
-                          {isMe ? "あなた" : player?.username || "相手"}
+                          {isMe ? "あなた" : player.username}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {getChoiceLabel(choice as RPSChoice)}
+                          {choice ? getChoiceLabel(choice) : "選択中..."}
                         </div>
                       </div>
                     </div>
@@ -190,16 +192,20 @@ function GameRoom({
               ) : (
                 <div className="text-center">
                   <div className="text-lg font-bold text-green-600 mb-2">
-                    {gameResult.result.winnerId === currentUser.id
+                    {gameResult.result.isDraw
+                      ? "引き分け！"
+                      : gameResult.result.pointsChange &&
+                        gameResult.result.pointsChange[currentUser.id] > 0
                       ? "あなたの勝ち！"
                       : "あなたの負け..."}
                   </div>
                   <div className="text-sm text-gray-600">
                     ポイント変動:{" "}
-                    {gameResult.result.pointsChange[currentUser.id] > 0
-                      ? "+"
-                      : ""}
-                    {gameResult.result.pointsChange[currentUser.id]}pt
+                    {gameResult.result.pointsChange &&
+                    gameResult.result.pointsChange[currentUser.id] !== undefined
+                      ? (gameResult.result.pointsChange[currentUser.id] > 0 ? "+" : "") +
+                        gameResult.result.pointsChange[currentUser.id]
+                      : "0"}pt
                   </div>
                 </div>
               )}
