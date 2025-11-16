@@ -103,6 +103,32 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
+// 管理者用: パスワード再設定
+app.post("/api/admin/reset-password", async (req, res) => {
+  try {
+    const { email, newPassword, adminPassword } = req.body as {
+      email?: string;
+      newPassword?: string;
+      adminPassword?: string;
+    };
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin-secret-2025";
+    if (!adminPassword || adminPassword !== ADMIN_PASSWORD) {
+      return res.status(403).json({ success: false, message: "管理者パスワードが不正です" });
+    }
+    if (!email || !newPassword) {
+      return res.status(400).json({ success: false, message: "email と newPassword は必須です" });
+    }
+    const result = updateUserPasswordByEmail(email, newPassword);
+    if (result.success) {
+      return res.json(result);
+    }
+    return res.status(400).json(result);
+  } catch (error) {
+    console.error("パスワード再設定APIエラー:", error);
+    return res.status(500).json({ success: false, message: "サーバーエラー" });
+  }
+});
+
 // HTTP API: ログイン（認証のみ、Socket.IO接続は別）
 app.post("/api/login", async (req, res) => {
   try {

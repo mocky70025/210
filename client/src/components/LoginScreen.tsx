@@ -20,6 +20,9 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
     // デバッグ情報をコンソールに出力
     console.log("ログイン試行:", { email, API_URL });
+    // 前後の空白を除去（誤入力対策）
+    const sanitizedEmail = email.trim();
+    const sanitizedPassword = password.trim();
 
     try {
       // HTTP APIでログイン（認証）
@@ -30,7 +33,7 @@ function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: sanitizedEmail, password: sanitizedPassword }),
       });
 
       // レスポンスが正常でない場合

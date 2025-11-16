@@ -186,3 +186,25 @@ export function getUserPoints(userId: number): number {
   return user?.points || 0;
 }
 
+// パスワードを更新（管理者用）
+export function updateUserPasswordByEmail(
+  email: string,
+  newPassword: string
+): { success: boolean; message: string } {
+  try {
+    const user = db
+      .prepare("SELECT id FROM users WHERE email = ?")
+      .get(email) as { id: number } | undefined;
+    if (!user) {
+      return { success: false, message: "対象のユーザーが見つかりません" };
+    }
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    db.prepare("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(newHash, user.id);
+    return { success: true, message: "パスワードを更新しました" };
+  } catch (error) {
+    console.error("パスワード更新エラー:", error);
+    return { success: false, message: "パスワード更新に失敗しました" };
+  }
+}
+
