@@ -10,7 +10,7 @@ WORKDIR /app
 
 # 依存関係を先に入れる
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # 残りのソース
 COPY . .
